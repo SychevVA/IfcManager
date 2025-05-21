@@ -1,5 +1,5 @@
 # cursor.py
-
+# тест
 import os
 import sys
 import ttkbootstrap as ttk
