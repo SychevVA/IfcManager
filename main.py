@@ -13,7 +13,7 @@ import threading
 
 # Для компиляции вставь в терминал: pyinstaller --onefile --windowed --name IFC_TEKLA_RHINO main.py
 
-
+# TEST
 # Установка рабочей директории
 os.chdir(os.path.dirname(sys.executable if getattr(sys, 'frozen', False) else os.path.abspath(sys.argv[0])))
 
