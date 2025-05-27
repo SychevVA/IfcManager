@@ -9,6 +9,8 @@ from RH_new_guids import assign_guids
 from TK_convertIFCclass import convert_ifc_proxies
 from io import StringIO
 import threading
+from ifchelper import Ifc_help
+from htmlparser import Parser_html
 
 
 # Для компиляции вставь в терминал: pyinstaller --onefile --windowed --name IFC_TEKLA_RHINO main.py
@@ -143,6 +145,54 @@ class CursorApp(ttk.Window):
         )
         self.btn_other.pack(pady=10, padx=10, fill=ttk.X)
 
+        # --- IDS: Новая секция для проверки IDS ---
+        ids_frame = ttk.LabelFrame(
+            main_frame,
+            text="Проверка IDS",
+            style='section.TLabelframe'
+        )
+        ids_frame.pack(fill=ttk.X, pady=10, padx=5)
+
+        # Фрейм для выбора IDS файлов
+        ids_files_frame = ttk.Frame(ids_frame)
+        ids_files_frame.pack(fill=ttk.X, pady=5, padx=10)
+
+        # IDS: Список выбранных IDS-файлов (теперь выбираются именно файлы, а не папка)
+        self.ids_files = []  # Список путей к выбранным IDS-файлам
+        self.ids_files_var = ttk.StringVar()  # Для отображения количества выбранных IDS-файлов
+        ttk.Label(ids_files_frame, text="IDS файлы:").pack(side=ttk.LEFT, padx=(0, 5))
+        self.ids_files_entry = ttk.Entry(ids_files_frame, textvariable=self.ids_files_var, width=60)
+        self.ids_files_entry.pack(side=ttk.LEFT, padx=5)
+        ttk.Button(
+            ids_files_frame,
+            text="Выбрать",
+            command=self.choose_ids_files,  # IDS: Выбор нескольких IDS-файлов
+            bootstyle="info-outline",
+            style='my.TButton'
+        ).pack(side=ttk.LEFT, padx=5)
+
+        # IDS: Кнопка запуска проверки IDS (активируется только если выбраны и IFC, и IDS)
+        self.btn_ids_check = ttk.Button(
+            ids_frame,
+            text="Запустить проверку IDS",
+            command=self.run_ids_check,  # IDS: Запуск проверки
+            bootstyle="warning",
+            style='my.TButton',
+            state="disabled"
+        )
+        self.btn_ids_check.pack(pady=10, padx=10, fill=ttk.X)
+
+        # IDS: Кнопка для открытия сводного отчета (по умолчанию неактивна)
+        self.btn_open_report = ttk.Button(
+            ids_frame,
+            text="Открыть сводный отчет",
+            command=self.open_consolidated_report,
+            bootstyle="secondary",
+            style='my.TButton',
+            state="disabled"
+        )
+        self.btn_open_report.pack(pady=5, padx=10, fill=ttk.X)
+
         # Создаем frame для статус бара
         status_frame = ttk.Frame(main_frame)
         status_frame.pack(side=ttk.BOTTOM, fill=ttk.X, pady=(10, 0))
@@ -250,19 +300,12 @@ class CursorApp(ttk.Window):
             filetypes=[("IFC files", "*.ifc")],
         )
         if paths:
-            self.ifc_paths = list(paths)
+            self.ifc_paths = paths
             self.entry_path.delete(0, ttk.END)
-            if len(paths) == 1:
-                self.entry_path.insert(0, paths[0])
-                self.status_var.set(f"Выбран файл: {os.path.basename(paths[0])}")
-            else:
-                self.entry_path.insert(0, f"Выбрано файлов: {len(paths)}")
-                self.status_var.set(f"Выбрано файлов: {len(paths)}")
-            # Активируем все кнопки
-            self.btn_guid.configure(state="normal")
-            self.btn_other.configure(state="normal")
-            self.btn_tekla1.configure(state="normal")
-            self.btn_tekla2.configure(state="normal")
+            self.entry_path.insert(0, f"Выбрано файлов: {len(paths)}")
+            self._set_buttons_state("normal")
+            self._update_ids_check_button_state()
+            self.status_var.set("Файлы выбраны")
         else:
             self.ifc_paths = []
             self.entry_path.delete(0, ttk.END)
@@ -317,6 +360,93 @@ class CursorApp(ttk.Window):
         self.stdout_redirector = StringIO()
         sys.stdout = self.stdout_redirector
         self.status_var.set("Журнал очищен")
+
+    def choose_ids_files(self):
+        """
+        IDS: Открывает диалог выбора IDS-файлов (можно выбрать несколько .ids)
+        После выбора обновляет список и отображение количества файлов
+        """
+        files = filedialog.askopenfilenames(
+            title="Выберите IDS-файлы",
+            filetypes=[("IDS files", "*.ids")],
+        )
+        if files:
+            self.ids_files = list(files)
+            self.ids_files_var.set(f"Выбрано файлов: {len(files)}")
+        else:
+            self.ids_files = []
+            self.ids_files_var.set("")
+        self._update_ids_check_button_state()  # IDS: Проверка, можно ли активировать кнопку
+
+    def _update_ids_check_button_state(self):
+        """
+        IDS: Активирует кнопку запуска IDS, если выбраны и IFC-файлы, и IDS-файлы
+        """
+        if self.ifc_paths and self.ids_files:
+            self.btn_ids_check.configure(state="normal")
+        else:
+            self.btn_ids_check.configure(state="disabled")
+
+    def run_ids_check(self):
+        """
+        IDS: Запускает проверку IDS для выбранных IFC-файлов и IDS-файлов
+        - Для каждого IFC-файла отчеты сохраняются в ту же папку, где лежит IFC
+        - Сводный отчет формируется в папке первого IFC-файла
+        - Все действия выполняются в отдельном потоке, чтобы не блокировать интерфейс
+        """
+        if not self.ifc_paths:
+            messagebox.showwarning("Предупреждение", "Выберите IFC файлы для проверки")
+            return
+        if not self.ids_files:
+            messagebox.showwarning("Предупреждение", "Выберите IDS файлы для проверки")
+            return
+
+        def check_ids():
+            try:
+                self._set_buttons_state("disabled")
+                self.status_var.set("Выполняется проверка IDS...")
+                
+                for ifc_path in self.ifc_paths:
+                    try:
+                        print(f"Проверка файла: {os.path.basename(ifc_path)}")
+                        # IDS: Папка для отчета = папка IFC файла
+                        report_folder = os.path.dirname(ifc_path)
+                        Ifc_help.check_ifc_file(ifc_path, self.ids_files, report_folder)
+                        print(f"✓ {os.path.basename(ifc_path)} - проверка завершена")
+                    except Exception as e:
+                        print(f"! Ошибка при проверке {os.path.basename(ifc_path)}: {e}")
+                # IDS: Сводный отчет по всем IFC в папке первого IFC
+                try:
+                    consolidated_path = os.path.join(os.path.dirname(self.ifc_paths[0]), 'Сводный отчет.html')
+                    Parser_html.get_consolidated_html(os.path.dirname(self.ifc_paths[0]), 'Сводный отчет')
+                    print("✓ Сводный отчет создан")
+                    # Активируем кнопку открытия отчета, если файл создан
+                    if os.path.exists(consolidated_path):
+                        self.btn_open_report.configure(state="normal")
+                except Exception as e:
+                    print(f"! Ошибка при создании сводного отчета: {e}")
+                self.status_var.set("Проверка IDS завершена")
+                messagebox.showinfo("Готово", "Проверка IDS завершена. Отчеты сохранены рядом с IFC файлами.")
+            except Exception as e:
+                self.status_var.set("Ошибка при проверке IDS")
+                messagebox.showerror("Ошибка", f"Произошла ошибка при проверке IDS: {e}")
+            finally:
+                self._set_buttons_state("normal")
+        threading.Thread(target=check_ids, daemon=True).start()
+
+    def open_consolidated_report(self):
+        """
+        Открывает сводный отчет в браузере по умолчанию, если файл существует
+        """
+        if not self.ifc_paths:
+            messagebox.showwarning("Нет файлов", "Сначала выполните проверку IDS.")
+            return
+        consolidated_path = os.path.join(os.path.dirname(self.ifc_paths[0]), 'Сводный отчет.html')
+        if os.path.exists(consolidated_path):
+            import webbrowser
+            webbrowser.open(f'file://{os.path.abspath(consolidated_path)}')
+        else:
+            messagebox.showerror("Файл не найден", "Сводный отчет не найден. Сначала выполните проверку IDS.")
 
 if __name__ == "__main__":
     app = CursorApp()

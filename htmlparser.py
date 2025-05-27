@@ -64,26 +64,34 @@ class Parser_html:
 
             # Получение содержимого тегов <h2> <div> <p>
             h2_tag = soup.find('h2')
-            container_div = soup.find('div', {'class': 'container'})
-            p_tag = container_div.find_next('p')  # Тег <p>, который расположен после <div>
+            if h2_tag is not None:
+                h2_tag.string = os.path.basename(input_filename).replace('.html', '')
+            else:
+                h2_tag = soup.new_tag('h2')
+                h2_tag.string = os.path.basename(input_filename).replace('.html', '') + " (нет заголовка)"
 
-            # Доабавление имени файла отчета
-            html_file_name = os.path.basename(input_filename)
-            h2_tag.string = str(html_file_name).replace('.html', '')
-
-            # Создание ссылки на файл отчета
             link_tag = soup.new_tag('a')
-            link_tag['href'] = html_file_name
+            link_tag['href'] = os.path.basename(input_filename)
             link_tag.string = 'Ссылка'
 
-            # Горизонтальная черта для разделения отчетов
+            container_div = soup.find('div', {'class': 'container'})
+            p_tag = None
+            if container_div is not None:
+                p_tag = container_div.find_next('p')
+
             hr_tag = soup.new_tag("hr")
 
-            # Заполнение body данными из отчета
+            # Добавление в body: всегда добавляем хотя бы заголовок и ссылку
             body_tag.append(h2_tag)
             body_tag.append(link_tag)
-            body_tag.append(container_div)
-            if p_tag: body_tag.append(p_tag)
+            if container_div is not None:
+                body_tag.append(container_div)
+            else:
+                empty_div = soup.new_tag('div')
+                empty_div.string = "Нет блока container в отчете"
+                body_tag.append(empty_div)
+            if p_tag is not None:
+                body_tag.append(p_tag)
             body_tag.append(hr_tag)
 
         consolidated_soup.append(body_tag)
