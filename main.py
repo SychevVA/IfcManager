@@ -252,7 +252,7 @@ class CursorApp(ttk.Window):
 
         self.btn_robur1 = ttk.Button(
             frame,
-            text="Пустая кнопка 1",
+            text="Изменить структуру",
             command=lambda: self.run_operation(None, "Пустая кнопка", show_info=True),
             bootstyle="info",
             style='my.TButton',
@@ -262,7 +262,7 @@ class CursorApp(ttk.Window):
 
         self.btn_robur2 = ttk.Button(
             frame,
-            text="Пустая кнопка 2",
+            text="Переопределить классы",
             command=lambda: self.run_operation(None, "Пустая кнопка", show_info=True),
             bootstyle="info",
             style='my.TButton',
