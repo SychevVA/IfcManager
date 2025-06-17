@@ -53,8 +53,8 @@ class Parser_html:
         style_tag = BeautifulSoup().new_tag('style')
         style_tag.string = '''
             .ifc-group {
-                margin: 30px 0;
-                padding: 20px;
+                margin: 10px 0;
+                padding: 5px 25px;
                 border: 2px solid #0066cc;
                 border-radius: 8px;
                 background: linear-gradient(135deg, #f8f9ff 0%, #e6f3ff 100%);
@@ -62,18 +62,49 @@ class Parser_html:
             }
             .ifc-header {
                 color: #0066cc;
-                font-size: 24px;
+                font-size: 20px;
                 font-weight: bold;
-                margin-bottom: 20px;
-                padding: 10px 15px;
+                margin-bottom: 15px;
+                padding: 8px 12px 8px 40px;
                 background: #ffffff;
                 border-radius: 5px;
                 border-left: 5px solid #0066cc;
                 box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+                cursor: pointer;
+                user-select: none;
+                transition: all 0.3s ease;
+                position: relative;
+            }
+            .ifc-header:hover {
+                background: #f0f8ff;
+                transform: translateX(5px);
+            }
+            .ifc-header::after {
+                content: "▼";
+                position: absolute;
+                left: 12px;
+                top: 50%;
+                transform: translateY(-50%);
+                transition: transform 0.3s ease;
+                font-size: 14px;
+                color: #0066cc;
+            }
+            .ifc-header.collapsed::after {
+                transform: translateY(-50%) rotate(-90deg);
+            }
+            .ifc-content {
+                transition: all 0.3s ease;
+                overflow: hidden;
+            }
+            .ifc-content.collapsed {
+                max-height: 0;
+                opacity: 0;
+                margin: 0;
+                padding: 0;
             }
             .report-item {
-                margin: 15px 0;
-                padding: 15px;
+                margin: 10px 0;
+                padding: 12px;
                 background: #ffffff;
                 border-radius: 5px;
                 border: 1px solid #e0e0e0;
@@ -81,14 +112,107 @@ class Parser_html:
             .report-item:nth-child(even) {
                 background: #fafafa;
             }
+            .report-item h2 {
+                font-size: 16px;
+                margin: 0 0 8px 0;
+            }
+            .report-item p {
+                font-size: 14px;
+                margin: 5px 0;
+            }
+            .report-item a {
+                font-size: 14px;
+            }
+            .report-item div {
+                font-size: 14px;
+            }
+            .container {
+                margin-bottom: 10px;
+                margin-top: 5px;
+            }
             body {
                 font-family: Arial, sans-serif;
-                line-height: 1.6;
-                margin: 20px;
+                line-height: 1.4;
+                margin: 15px 100px;
                 background: #f5f5f5;
+                font-size: 14px;
+            }
+            .controls {
+                position: fixed;
+                top: 30px;
+                right: 20px;
+                z-index: 1000;
+            }
+            .control-btn {
+                background: #a9a9a9;
+                color: white;
+                border: none;
+                padding: 5px;
+                margin: 5px;
+                border-radius: 5px;
+                cursor: pointer;
+                font-size: 11px;
+                transition: all 0.3s ease;
+                display: block;
+                width: 100%;
+                text-align: left;
+            }
+            .control-btn:hover {
+                background: #0052a3;
+                transform: translateY(-1px);
+                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+            }
+            .control-btn:active {
+                transform: translateY(0);
             }
         '''
         head_tag.append(style_tag)
+
+        # Добавление JavaScript для функциональности спойлеров
+        script_tag = BeautifulSoup().new_tag('script')
+        script_tag.string = '''
+            document.addEventListener('DOMContentLoaded', function() {
+                // Добавляем обработчики событий для всех заголовков IFC
+                const headers = document.querySelectorAll('.ifc-header');
+                headers.forEach(function(header) {
+                    header.addEventListener('click', function() {
+                        const group = this.closest('.ifc-group');
+                        const content = group.querySelector('.ifc-content');
+                        
+                        // Переключаем состояние
+                        this.classList.toggle('collapsed');
+                        content.classList.toggle('collapsed');
+                    });
+                });
+                
+                // Обработчик для кнопки "Свернуть все"
+                document.getElementById('collapse-all').addEventListener('click', function() {
+                    headers.forEach(function(header) {
+                        const group = header.closest('.ifc-group');
+                        const content = group.querySelector('.ifc-content');
+                        
+                        if (!content.classList.contains('collapsed')) {
+                            header.classList.add('collapsed');
+                            content.classList.add('collapsed');
+                        }
+                    });
+                });
+                
+                // Обработчик для кнопки "Развернуть все"
+                document.getElementById('expand-all').addEventListener('click', function() {
+                    headers.forEach(function(header) {
+                        const group = header.closest('.ifc-group');
+                        const content = group.querySelector('.ifc-content');
+                        
+                        if (content.classList.contains('collapsed')) {
+                            header.classList.remove('collapsed');
+                            content.classList.remove('collapsed');
+                        }
+                    });
+                });
+            });
+        '''
+        head_tag.append(script_tag)
 
         processed_styles = set()  # Множество для записи настроек стиля
 
@@ -110,14 +234,17 @@ class Parser_html:
             ifc_groups[ifc_name].append(input_filename)
 
         # Обработка файлов по группам IFC
-        for ifc_name, group_files in ifc_groups.items():
+        for index, (ifc_name, group_files) in enumerate(ifc_groups.items(), 1):
             # Создаём контейнер для группы IFC файлов
             ifc_group_div = BeautifulSoup().new_tag('div', attrs={'class': 'ifc-group'})
             
             # Добавляем заголовок IFC файла
             ifc_header = BeautifulSoup().new_tag('h1', attrs={'class': 'ifc-header'})
-            ifc_header.string = f'IFC файл: {ifc_name}'
+            ifc_header.string = f'#{index} - {ifc_name}.ifc'
             ifc_group_div.append(ifc_header)
+
+            # Создаём контейнер для содержимого группы
+            ifc_content_div = BeautifulSoup().new_tag('div', attrs={'class': 'ifc-content'})
 
             for input_filename in group_files:  # Цикл для обработки файлов отчетов
                 soup = Parser_html.parse_html(input_filename)  # Получение файла html
@@ -162,11 +289,25 @@ class Parser_html:
                 if p_tag is not None:
                     report_item_div.append(p_tag)
 
-                # Добавляем отчёт в группу
-                ifc_group_div.append(report_item_div)
+                # Добавляем отчёт в контейнер содержимого
+                ifc_content_div.append(report_item_div)
+
+            # Добавляем контейнер содержимого в группу
+            ifc_group_div.append(ifc_content_div)
 
             # Добавляем группу в body
             body_tag.append(ifc_group_div)
+
+        # Добавление кнопок управления спойлерами
+        controls_div = BeautifulSoup().new_tag('div', attrs={'class': 'controls'})
+        collapse_all_btn = BeautifulSoup().new_tag('button', attrs={'class': 'control-btn', 'id': 'collapse-all'})
+        collapse_all_btn.string = '▲ Свернуть все'
+        expand_all_btn = BeautifulSoup().new_tag('button', attrs={'class': 'control-btn', 'id': 'expand-all'})
+        expand_all_btn.string = '▼ Развернуть все'
+        
+        controls_div.append(collapse_all_btn)
+        controls_div.append(expand_all_btn)
+        body_tag.append(controls_div)
 
         consolidated_soup.append(body_tag)
 
