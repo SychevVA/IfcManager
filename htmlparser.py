@@ -149,16 +149,14 @@ class Parser_html:
             .fail.percent.na-result {
                 color: #888 !important;
                 background-color: #ddd !important;
-                border-color: #bbb !important;
+                border-color: #ddd !important;
                 opacity: 0.5;
             }
             .fail.percent.na-result::before {
                 content: "Skipped -";
                 display: inline-block;
-                font-weight: bold;
                 color: #888;
                 margin-right: 5px;
-                font-size: 10px;
             }
             body {
                 font-family: Arial, sans-serif;
