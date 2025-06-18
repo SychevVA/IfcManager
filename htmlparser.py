@@ -1,5 +1,6 @@
 import os
 from bs4 import BeautifulSoup
+from datetime import datetime
 
 
 class Parser_html:
@@ -268,9 +269,14 @@ class Parser_html:
                     h2_tag = soup.new_tag('h2')
                     h2_tag.string = os.path.basename(input_filename).replace('.html', '') + " (нет заголовка)"
 
+                # Получение даты последнего изменения файла
+                file_modification_time = datetime.fromtimestamp(os.path.getmtime(input_filename))
+                date_str = file_modification_time.strftime("%d.%m.%y - %H:%M:%S")
+
                 link_tag = soup.new_tag('a')
                 link_tag['href'] = os.path.basename(input_filename)
-                link_tag.string = 'Ссылка на отчёт'
+                link_tag['target'] = '_blank'
+                link_tag.string = f'Ссылка на отчёт (от {date_str})'
 
                 container_div = soup.find('div', {'class': 'container'})
                 p_tag = None
