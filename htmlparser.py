@@ -131,6 +131,35 @@ class Parser_html:
                 margin-bottom: 10px;
                 margin-top: 5px;
             }
+            .container.na-result {
+                background-color: #f0f0f0;
+                border: 1px solid #ccc;
+                border-radius: 5px;
+                padding: 10px;
+                color: #666;
+                opacity: 0.2;
+            }
+            .container.na-result::before {
+                content: "Skipped";
+                display: block;
+                color: #888;
+                margin-bottom: 5px;
+            }
+            /* Стили для fail percent элементов содержащих N/A */
+            .fail.percent.na-result {
+                color: #888 !important;
+                background-color: #ddd !important;
+                border-color: #bbb !important;
+                opacity: 0.5;
+            }
+            .fail.percent.na-result::before {
+                content: "Skipped -";
+                display: inline-block;
+                font-weight: bold;
+                color: #888;
+                margin-right: 5px;
+                font-size: 10px;
+            }
             body {
                 font-family: Arial, sans-serif;
                 line-height: 1.4;
@@ -211,6 +240,16 @@ class Parser_html:
                         }
                     });
                 });
+                
+                // Обработка fail percent элементов с N/A
+                const failPercentElements = document.querySelectorAll('.fail.percent');
+                failPercentElements.forEach(function(element) {
+                    const text = element.textContent || element.innerText;
+                    if (text.includes('N/A') || text.includes('N/A%')) {
+                        element.classList.add('na-result');
+                        element.title = 'N/A результат - проверка пропущена';
+                    }
+                });
             });
         '''
         head_tag.append(script_tag)
@@ -281,6 +320,17 @@ class Parser_html:
                 container_div = soup.find('div', {'class': 'container'})
                 p_tag = None
                 if container_div is not None:
+                    # Проверяем содержимое container на наличие N/A%
+                    container_text = container_div.get_text()
+                    # Обрабатываем fail percent элементы с N/A
+                    fail_percent_elements = container_div.find_all(class_=['fail', 'percent'])
+                    for element in fail_percent_elements:
+                        if 'fail' in element.get('class', []) and 'percent' in element.get('class', []):
+                            element_text = element.get_text()
+                            if 'N/A' in element_text or 'N/A%' in element_text:
+                                element['class'] = element.get('class', []) + ['na-result']
+                                element['title'] = 'N/A результат - проверка пропущена'
+                    
                     p_tag = container_div.find_next('p')
 
                 # Добавление элементов в контейнер отчёта
