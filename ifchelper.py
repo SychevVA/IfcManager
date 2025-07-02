@@ -27,7 +27,7 @@ class Ifc_help:
                 reporter_obj.report()
                 # Запись отчета в файл с уникальным имененм для каждого IDS-файла
                 ids_file_name = os.path.basename(ids_file_path).replace('.ids', '')
-                reporter_obj.to_file(f'{report_path_folder}/{ifc_file_name.replace(".ifc", "")}_{ids_file_name}.html')
+                reporter_obj.to_file(f'{report_path_folder}/{ifc_file_name.replace(".ifc", "")}__{ids_file_name}.html')
 
     @staticmethod
     def get_property_by_propertySet(ifc_file, ifc_id):
