@@ -77,6 +77,8 @@ class CursorApp(ttk.Window):
         self.ifc_paths: List[str] = []  # Список путей к IFC файлам
         self.ids_files: List[str] = []  # Список путей к IDS файлам
         self.padding = WINDOW_PADDING
+        self.last_ifc_dir: str = ""  # Последняя директория для IFC файлов
+        self.last_ids_dir: str = ""  # Последняя директория для IDS файлов
 
     def _setup_output_redirect(self):
         """Настройка перенаправления вывода"""
@@ -134,7 +136,7 @@ class CursorApp(ttk.Window):
         """Создание заголовка приложения"""
         header = ttk.Label(
             parent, 
-            text="Обработка IFC4 файлов",
+            text="Обработка IFC файлов",
             style='header.TLabel',
             bootstyle="primary"
         )
@@ -202,7 +204,7 @@ class CursorApp(ttk.Window):
 
         self.btn_tekla1 = ttk.Button(
             frame,
-            text="Замена IFCBuildingElementProxy:Userdefined",
+            text="💊 Замена IFCBuildingElementProxy:Userdefined",
             command=lambda: self.run_operation(convert_ifc_proxies),
             bootstyle="primary",
             style='my.TButton',
@@ -293,7 +295,7 @@ class CursorApp(ttk.Window):
 
         self.btn_ids_check = ttk.Button(
             frame,
-            text="Запустить проверку IDS",
+            text="🔎 Запустить проверку IDS",
             command=self.run_ids_check,
             bootstyle="warning",
             style='my.TButton',
@@ -303,13 +305,31 @@ class CursorApp(ttk.Window):
 
         self.btn_open_report = ttk.Button(
             frame,
-            text="Открыть сводный отчет",
+            text="📄 Открыть сводный отчет",
             command=self.open_consolidated_report,
             bootstyle="secondary",
             style='my.TButton',
             state="disabled"
         )
         self.btn_open_report.pack(pady=5, padx=10, fill=ttk.X)
+        
+        self.btn_open_folder = ttk.Button(
+            frame,
+            text="📁 Открыть папку с отчетом",
+            command=self.open_report_folder,
+            bootstyle="info-outline",
+            style='my.TButton'
+        )
+        self.btn_open_folder.pack(pady=5, padx=10, fill=ttk.X)
+        
+        self.btn_delete_reports = ttk.Button(
+            frame,
+            text="🗑️ Удалить отчеты",
+            command=self.delete_reports,
+            bootstyle="danger-outline",
+            style='my.TButton'
+        )
+        self.btn_delete_reports.pack(pady=5, padx=10, fill=ttk.X)
 
     def _create_status_bar(self, parent):
         """Создание статус бара"""
@@ -403,10 +423,13 @@ class CursorApp(ttk.Window):
         """Выбор IFC файлов"""
         paths = filedialog.askopenfilenames(
             title=MESSAGES["select_files"],
-            filetypes=FILE_TYPES["ifc"]
+            filetypes=FILE_TYPES["ifc"],
+            initialdir=self.last_ifc_dir if self.last_ifc_dir else None
         )
         if paths:
             self.ifc_paths = paths
+            # Сохраняем директорию последнего выбранного IFC файла
+            self.last_ifc_dir = os.path.dirname(paths[0])
             self.entry_path.delete(0, ttk.END)
             self.entry_path.insert(0, f"Выбрано файлов: {len(paths)}")
             self._set_buttons_state("normal")
@@ -422,10 +445,13 @@ class CursorApp(ttk.Window):
         """Выбор IDS файлов"""
         files = filedialog.askopenfilenames(
             title="Выберите IDS файлы",
-            filetypes=FILE_TYPES["ids"]
+            filetypes=FILE_TYPES["ids"],
+            initialdir=self.last_ids_dir if self.last_ids_dir else None
         )
         if files:
             self.ids_files = list(files)
+            # Сохраняем директорию последнего выбранного IDS файла
+            self.last_ids_dir = os.path.dirname(files[0])
             self.ids_files_var.set(f"Выбрано файлов: {len(files)}")
         else:
             self.ids_files = []
@@ -520,6 +546,63 @@ class CursorApp(ttk.Window):
             webbrowser.open(f'file://{os.path.abspath(consolidated_path)}')
         else:
             messagebox.showerror("Файл не найден", "Сводный отчет не найден. Сначала выполните проверку IDS.")
+
+    def open_report_folder(self):
+        """Открытие папки с отчетами"""
+        if not self.ifc_paths:
+            messagebox.showwarning("Нет файлов", "Выберите IFC файлы.")
+            return
+        report_folder = os.path.dirname(self.ifc_paths[0])
+        if os.path.exists(report_folder):
+            # Открываем папку в проводнике Windows
+            os.startfile(report_folder)
+        else:
+            messagebox.showerror("Папка не найдена", "Папка с отчетами не найдена.")
+
+    def delete_reports(self):
+        """Удаление HTML отчетов"""
+        if not self.ifc_paths:
+            messagebox.showwarning("Нет файлов", "Выберите IFC файлы.")
+            return
+        
+        report_folder = os.path.dirname(self.ifc_paths[0])
+        if not os.path.exists(report_folder):
+            messagebox.showerror("Папка не найдена", "Папка с отчетами не найдена.")
+            return
+        
+        # Подсчитываем HTML файлы в папке
+        html_files = [f for f in os.listdir(report_folder) if f.endswith('.html')]
+        if not html_files:
+            messagebox.showinfo("Нет отчетов", "В папке нет HTML отчетов для удаления.")
+            return
+        
+        # Запрашиваем подтверждение
+        confirm = messagebox.askyesno(
+            "Подтверждение удаления",
+            f"Вы уверены, что хотите удалить все HTML отчеты?\n\n"
+            f"Будет удалено файлов: {len(html_files)}\n"
+            f"Папка: {report_folder}"
+        )
+        
+        if confirm:
+            try:
+                deleted_count = 0
+                for filename in html_files:
+                    file_path = os.path.join(report_folder, filename)
+                    os.remove(file_path)
+                    deleted_count += 1
+                    print(f"Удален файл: {filename}")
+                
+                # Отключаем кнопку открытия отчета, если она была активна
+                self.btn_open_report.configure(state="disabled")
+                
+                print(f"✓ Удалено отчетов: {deleted_count}")
+                messagebox.showinfo("Готово", f"Успешно удалено {deleted_count} отчетов.")
+                self.status_var.set(f"Удалено отчетов: {deleted_count}")
+            except Exception as e:
+                error_msg = f"Ошибка при удалении отчетов: {str(e)}"
+                print(error_msg)
+                messagebox.showerror("Ошибка", error_msg)
 
     def _set_buttons_state(self, state: str):
         """Установка состояния всех кнопок"""
