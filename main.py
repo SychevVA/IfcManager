@@ -72,13 +72,31 @@ class CursorApp(ttk.Window):
                 else os.path.abspath(sys.argv[0])))
         print(f"Рабочая директория установлена: {os.getcwd()}")
         
-        # Установка иконки окна
-        icon_path = os.path.join(os.getcwd(), "IfcManager.ico")
+        self.set_window_icon()
+    
+    # Установка иконки окна
+    def set_window_icon(self):
+        """Установка иконки окна"""
+        if getattr(sys, 'frozen', False):
+            # Для собранного приложения PyInstaller
+            # В режиме --onedir данные находятся рядом с .exe
+            # В режиме --onefile данные находятся в sys._MEIPASS
+            if hasattr(sys, '_MEIPASS'):
+                base_path = sys._MEIPASS  # --onefile режим
+            else:
+                base_path = os.path.dirname(sys.executable)  # --onedir режим
+        else:
+            # Для отладки
+            base_path = os.path.dirname(os.path.abspath(__file__))
+        
+        icon_path = os.path.join(base_path, "IfcManager.ico")
         if os.path.exists(icon_path):
             try:
                 self.iconbitmap(icon_path)
             except Exception as e:
                 print(f"Не удалось загрузить иконку: {e}")
+        else:
+            print(f"Иконка не найдена по пути: {icon_path}")
 
     def _init_variables(self):
         """Инициализация переменных приложения"""

@@ -1,6 +1,5 @@
 Вставь строку в терминал для компиляции сборки
-pyinstaller --onedir --collect-all ifctester --collect-all ifcopenshell --collect-all bs4 --windowed --name IFC_MANAGER --icon=IfcManager.ico --add-data "ids.xsd;.\ids.xsd" main.py
-
+pyinstaller --onedir --collect-all ifctester --collect-all ifcopenshell --collect-all bs4 --windowed --name IFC_MANAGER --add-data "ids.xsd;.\ids.xsd" --icon="IfcManager.ico" --add-data "IfcManager.ico;." main.py
 
 После компиляции PyInstaller создаются две папки:
 build/ — временные файлы сборки:
