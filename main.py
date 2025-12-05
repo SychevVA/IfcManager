@@ -24,7 +24,7 @@ from ifchelper import Ifc_help
 from htmlparser import Parser_html
 
 # Константы приложения
-WINDOW_TITLE = "Обработка IFC-файлов"
+WINDOW_TITLE = "IFC Manager - Обработка IFC файлов"
 WINDOW_SIZE = "800x900"
 WINDOW_THEME = "cosmo"
 WINDOW_PADDING = 20
@@ -71,6 +71,14 @@ class CursorApp(ttk.Window):
         os.chdir(os.path.dirname(sys.executable if getattr(sys, 'frozen', False) 
                 else os.path.abspath(sys.argv[0])))
         print(f"Рабочая директория установлена: {os.getcwd()}")
+        
+        # Установка иконки окна
+        icon_path = os.path.join(os.getcwd(), "IfcManager.ico")
+        if os.path.exists(icon_path):
+            try:
+                self.iconbitmap(icon_path)
+            except Exception as e:
+                print(f"Не удалось загрузить иконку: {e}")
 
     def _init_variables(self):
         """Инициализация переменных приложения"""
@@ -110,17 +118,6 @@ class CursorApp(ttk.Window):
             expand=[('selected', [1, 1, 1, 0])]
         )
 
-        # Настройка цветов для кнопок
-        style.configure('primary.TButton', 
-            background='#0063A3',
-            foreground='white'
-        )
-        style.map('primary.TButton',
-            background=[('active', '#0077C2'),
-                       ('disabled', '#cccccc')],
-            foreground=[('disabled', '#666666')]
-        )
-
     def _build_ui(self):
         """Создание пользовательского интерфейса"""
         main_frame = ttk.Frame(self, padding=self.padding)
@@ -136,7 +133,7 @@ class CursorApp(ttk.Window):
         """Создание заголовка приложения"""
         header = ttk.Label(
             parent, 
-            text="Обработка IFC файлов",
+            text=WINDOW_TITLE,
             style='header.TLabel',
             bootstyle="primary"
         )
@@ -318,7 +315,8 @@ class CursorApp(ttk.Window):
             text="📁 Открыть папку с отчетом",
             command=self.open_report_folder,
             bootstyle="info-outline",
-            style='my.TButton'
+            style='my.TButton',
+            state="disabled"
         )
         self.btn_open_folder.pack(pady=5, padx=10, fill=ttk.X)
         
@@ -327,7 +325,8 @@ class CursorApp(ttk.Window):
             text="🗑️ Удалить отчеты",
             command=self.delete_reports,
             bootstyle="danger-outline",
-            style='my.TButton'
+            style='my.TButton',
+            state="disabled"
         )
         self.btn_delete_reports.pack(pady=5, padx=10, fill=ttk.X)
 
