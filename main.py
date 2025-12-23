@@ -18,6 +18,7 @@ from ttkbootstrap.constants import *
 from tkinter import filedialog, messagebox, scrolledtext
 
 # Локальные модули
+from ifc_tab import IfcTab
 from RH_new_guids import assign_guids
 from TK_convertIFCclass import convert_ifc_proxies
 from ifchelper import Ifc_help
@@ -184,18 +185,22 @@ class CursorApp(ttk.Window):
         self.tab_control.pack(fill=ttk.BOTH, expand=True, pady=(0, 10))
 
         # Создание вкладок
+        self.ifc_tab = ttk.Frame(self.tab_control)
         self.ids_tab = ttk.Frame(self.tab_control)
         self.tekla_tab = ttk.Frame(self.tab_control)
         self.rhino_tab = ttk.Frame(self.tab_control)
         self.robur_tab = ttk.Frame(self.tab_control)
 
         # Добавление вкладок
+        self.tab_control.add(self.ifc_tab, text="IFC")
         self.tab_control.add(self.ids_tab, text="Проверка IDS")
         self.tab_control.add(self.tekla_tab, text="Tekla Structures")
         self.tab_control.add(self.rhino_tab, text="Rhinoceros")
         self.tab_control.add(self.robur_tab, text="Robur")
 
         # Заполнение вкладок
+        self.ifc_tab_ui = IfcTab(self, self.ifc_tab, MESSAGES)
+        self.ifc_tab_ui.build()
         self._create_ids_tab()
         self._create_tekla_tab()
         self._create_rhino_tab()
@@ -450,6 +455,8 @@ class CursorApp(ttk.Window):
             self.entry_path.delete(0, ttk.END)
             self.entry_path.insert(0, f"Выбрано файлов: {len(paths)}")
             self._set_buttons_state("normal")
+            if hasattr(self, "ifc_tab_ui"):
+                self.ifc_tab_ui.on_files_selected()
             self._update_ids_check_button_state()
             self.status_var.set(MESSAGES["files_selected"])
         else:
@@ -457,6 +464,8 @@ class CursorApp(ttk.Window):
             self.entry_path.delete(0, ttk.END)
             self.status_var.set(MESSAGES["select_files"])
             self._set_buttons_state("disabled")
+            if hasattr(self, "ifc_tab_ui"):
+                self.ifc_tab_ui.on_files_cleared()
 
     def choose_ids_files(self):
         """Выбор IDS файлов"""
